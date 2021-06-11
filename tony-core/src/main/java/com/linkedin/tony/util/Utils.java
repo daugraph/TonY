@@ -307,6 +307,10 @@ public class Utils {
       }
     }
 
+    LOG.info("++++++++++++++ env +++++++++++++++");
+    LOG.info(env.toString());
+    LOG.info("++++++++++++++++++++++++++++++++++");
+
     // Used for running unit tests in build boxes without Hadoop environment.
     if (System.getenv(Constants.SKIP_HADOOP_PATH) == null) {
       taskCommand = Constants.HADOOP_CLASSPATH_COMMAND + taskCommand;
@@ -316,9 +320,7 @@ public class Utils {
     taskProcessBuilder.redirectOutput(ProcessBuilder.Redirect.INHERIT);
     // Unset MALLOC_ARENA_MAX for better performance, see https://github.com/linkedin/TonY/issues/346
     taskProcessBuilder.environment().remove("MALLOC_ARENA_MAX");
-    if (env != null) {
-      taskProcessBuilder.environment().putAll(env);
-    }
+    taskProcessBuilder.environment().putAll(env);
     Process taskProcess = taskProcessBuilder.start();
     if (timeout > 0) {
       taskProcess.waitFor(timeout, TimeUnit.MILLISECONDS);
