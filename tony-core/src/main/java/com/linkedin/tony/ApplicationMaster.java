@@ -1241,6 +1241,7 @@ public class ApplicationMaster {
 
       LOG.info("Container " + containerId + " for task " + task + " finished with exitStatus " + exitStatus + ".");
       session.onTaskCompleted(task.getJobName(), task.getTaskIndex(), exitStatus, diagnosticMessage);
+
       scheduler.registerDependencyCompleted(task.getJobName());
       if (ContainerExitStatus.SUCCESS != exitStatus) {
         eventHandler.emitEvent(new Event(EventType.TASK_FINISHED,
@@ -1257,7 +1258,8 @@ public class ApplicationMaster {
       }
 
       // Detect if an untracked task has crashed to prevent application hangups.
-      if (!Utils.isJobTypeTracked(task.getJobName(), tonyConf) && task.isFailed()) {
+      boolean fastFail = Utils.isUntrackedJobType(task.getJobName(), tonyConf) && task.isFailed();
+      if (fastFail) {
         untrackedTaskFailed = true;
       }
 
@@ -1269,12 +1271,21 @@ public class ApplicationMaster {
   private boolean startupFailed() {
     Set<TonyTask> completedFailedTasks = getCompletedFailedTasks();
     LOG.debug("Completed failed task size: " + completedFailedTasks.size());
+    LOG.info("Completed failed tasks list:");
+    completedFailedTasks.stream().forEach(x -> {
+      LOG.info("Jobname: " + x.getJobName() + ", index: " + x.getTaskIndex());
+    });
+
+    LOG.info("Registered tasks list:");
+    session.getRegisteredTasks().stream().forEach(x -> {
+      LOG.info(x);
+    });
 
     // When executor failed and not registering to AM, it means task failed when starting task executor process
     return completedFailedTasks.stream().anyMatch(t -> {
       String taskId = t.getTaskInfo().getName() + ":" + t.getTaskInfo().getIndex();
       LOG.debug("Failed task ID: " + taskId);
-      boolean existFailed = !session.getRegisteredTasks().contains(t);
+      boolean existFailed = !session.getRegisteredTasks().contains(taskId);
       if (existFailed) {
         String errorMsg = String.format("Stopping AM for task [%s:%s] starting failed, "
                         + "allocated container is %s on host %s",
