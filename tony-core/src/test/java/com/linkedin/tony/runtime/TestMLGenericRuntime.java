@@ -20,25 +20,30 @@ import org.testng.Assert;
 import org.testng.annotations.BeforeTest;
 import org.testng.annotations.Test;
 
+import com.linkedin.tony.Framework;
 import com.linkedin.tony.TaskExecutor;
-import com.linkedin.tony.TonyConfigurationKeys;
 
-import static com.linkedin.tony.TonyConfigurationKeys.DEFAULT_TB_GPUS;
-import static com.linkedin.tony.TonyConfigurationKeys.DEFAULT_TB_MEMORY;
-import static com.linkedin.tony.TonyConfigurationKeys.DEFAULT_TB_VCORE;
-import static com.linkedin.tony.TonyConfigurationKeys.TB_GPUS;
-import static com.linkedin.tony.TonyConfigurationKeys.TB_INSTANCES;
-import static com.linkedin.tony.TonyConfigurationKeys.TB_MEMORY;
-import static com.linkedin.tony.TonyConfigurationKeys.TB_VCORE;
 import static com.linkedin.tony.TonyConfigurationKeys.TENSORBOARD_LOG_DIR;
 
 public class TestMLGenericRuntime {
-    private MLGenericRuntime runtime;
+    private TestRuntime runtime;
 
     static class TestRuntime extends MLGenericRuntime {
         @Override
-        protected void buildTaskEnv(TaskExecutor executor) throws Exception {
-            return;
+        public Framework.TaskExecutorAdapter getTaskAdapter(TaskExecutor taskExecutor) {
+            return new TestTaskExecutorAdapter(taskExecutor);
+        }
+
+        class TestTaskExecutorAdapter extends Task {
+
+            public TestTaskExecutorAdapter(TaskExecutor executor) {
+                super(executor);
+            }
+
+            @Override
+            protected void buildTaskEnv(TaskExecutor executor) throws Exception {
+                // ignore
+            }
         }
     }
 
@@ -54,39 +59,20 @@ public class TestMLGenericRuntime {
     public void testNeedReserveTBPort() {
         TaskExecutor taskExecutor = new TaskExecutor();
         taskExecutor.setJobName("chief");
-
-        runtime.initTaskExecutorResource(taskExecutor);
+        Framework.TaskExecutorAdapter taskExecutorAdapter = runtime.getTaskAdapter(taskExecutor);
 
         taskExecutor.setChief(true);
-        Assert.assertTrue(runtime.needReserveTBPort());
+        Assert.assertTrue(taskExecutorAdapter.needReserveTBPort());
 
         Configuration conf1 = new Configuration();
         conf1.set(TENSORBOARD_LOG_DIR, "/tmp");
         taskExecutor.setTonyConf(conf1);
-        Assert.assertFalse(runtime.needReserveTBPort());
+        Assert.assertFalse(taskExecutorAdapter.needReserveTBPort());
 
         taskExecutor.setChief(false);
-        Assert.assertFalse(runtime.needReserveTBPort());
+        Assert.assertFalse(taskExecutorAdapter.needReserveTBPort());
 
         taskExecutor.setJobName("tensorboard");
-        Assert.assertTrue(runtime.needReserveTBPort());
-    }
-
-    @Test
-    public void testCheckAndPrepareTBResource() {
-        Configuration conf = new Configuration(false);
-        Assert.assertTrue(runtime.checkAndPrepareTBResource(conf));
-
-        conf.set(TonyConfigurationKeys.TENSORBOARD_LOG_DIR, "hdfs://tmp");
-        Assert.assertTrue(runtime.checkAndPrepareTBResource(conf));
-        Assert.assertEquals(conf.get(TB_INSTANCES), "1");
-        Assert.assertEquals(conf.get(TB_VCORE), String.valueOf(DEFAULT_TB_VCORE));
-        Assert.assertEquals(conf.get(TB_MEMORY), DEFAULT_TB_MEMORY);
-        Assert.assertEquals(conf.get(TB_GPUS), String.valueOf(DEFAULT_TB_GPUS));
-
-        conf = new Configuration(false);
-        conf.set(TENSORBOARD_LOG_DIR, "hdfs://tmp");
-        conf.set(TB_INSTANCES, String.valueOf(2));
-        Assert.assertFalse(runtime.checkAndPrepareTBResource(conf));
+        Assert.assertTrue(taskExecutorAdapter.needReserveTBPort());
     }
 }

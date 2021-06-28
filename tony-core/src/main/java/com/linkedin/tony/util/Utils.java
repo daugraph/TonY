@@ -76,7 +76,7 @@ import com.linkedin.tony.tensorflow.JobContainerRequest;
 import net.lingala.zip4j.core.ZipFile;
 import net.lingala.zip4j.exception.ZipException;
 
-import static com.linkedin.tony.Constants.SIDECAR_TENSORBOARD_ROLE_NAME;
+import static com.linkedin.tony.Constants.SIDECAR_TB_ROLE_NAME;
 import static com.linkedin.tony.Constants.EVALUATOR_JOB_NAME;
 import static com.linkedin.tony.Constants.JOBS_SUFFIX;
 import static com.linkedin.tony.Constants.LOGS_SUFFIX;
@@ -390,7 +390,7 @@ public class Utils {
       int gpus = conf.getInt(TonyConfigurationKeys.getResourceKey(jobName, Constants.GPUS),
               TonyConfigurationKeys.DEFAULT_GPUS);
       if (gpus > 0 && !ResourceUtils.getResourceTypeIndex().containsKey(Constants.GPU_URI)) {
-        LOG.warn(String.format("User requested %d GPUs for job '%s' but GPU is not available on the cluster. ",
+        throw new RuntimeException(String.format("User requested %d GPUs for job '%s' but GPU is not available on the cluster. ",
             gpus, jobName));
       }
 
@@ -519,7 +519,7 @@ public class Utils {
       Map<String, List<String>> spec =
               mapper.readValue(clusterSpec, new TypeReference<Map<String, List<String>>>() { });
 
-      spec.remove(SIDECAR_TENSORBOARD_ROLE_NAME);
+      spec.remove(SIDECAR_TB_ROLE_NAME);
 
       if (!isTFEvaluator(jobName)) {
           spec.keySet().removeIf(Utils::isTFEvaluator);
